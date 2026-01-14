@@ -41,6 +41,8 @@ export const getInvalidSortFieldMessage = (
 export const ACCOUNT_INACTIVE =
   "Your account is currently inactive. Please reach out to the realstate team for help.";
 
+export const ACCOUNT_VERIFICATION_PENDING =
+  "Your account is not yet verified. Please verify your account and then try logging in.";
 /* User Detail Fetch */
 export const DETAIL_FETCH_SUCCESS = "Detail fetched successfully.";
 

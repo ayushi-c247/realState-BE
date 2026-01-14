@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import type { Response } from "express";
-import { UserStatus } from "@prisma/client";
+import { AgentApprovalStatus, UserRole, UserStatus } from "@prisma/client";
 
 import { prismaService } from "@services";
 import { authHandler, generateTokenHandler, emailHandler } from "@utils";
@@ -44,9 +44,16 @@ export const login = async (
         status: true,
         password: true,
         is_email_verified: true,
-      }, // Fields to select
+        agent_profile: {
+          select: {
+            user_id: true,
+            approval_status: true,
+          },
+        },
+      },
     }
   );
+
   if (!user) {
     return {
       status: BAD_REQUEST,
@@ -55,14 +62,33 @@ export const login = async (
       data: null,
     };
   }
-  // if (user.status === UserStatus.PENDING) {
-  //   throw new Error(authMessages.ACCOUNT_PENDING);
-  // }
+  if (
+    user.role === UserRole.AGENT &&
+    user.status === UserStatus.ACTIVE &&
+    user?.agent_profile?.approval_status === AgentApprovalStatus.PENDING
+  ) {
+    throw new Error(authMessages.ACCOUNT_PENDING);
+  }
+  if (
+    user.role === UserRole.AGENT &&
+    user.status === UserStatus.ACTIVE &&
+    user?.agent_profile?.approval_status === AgentApprovalStatus.REJECTED
+  ) {
+    throw new Error(authMessages.ACCOUNT_REJECTED);
+  }
   if (user.status === UserStatus.INACTIVE) {
     return {
       status: BAD_REQUEST,
       success: false,
       message: commonMessages.ACCOUNT_INACTIVE,
+      data: null,
+    };
+  }
+  if (user.status === UserStatus.PENDING) {
+    return {
+      status: BAD_REQUEST,
+      success: false,
+      message: commonMessages.ACCOUNT_VERIFICATION_PENDING,
       data: null,
     };
   }
@@ -107,7 +133,10 @@ export const login = async (
  * @param {Request} req Express request object
  * @returns {Promise<GetUsersResponse>} Response containing the user(s) or error information
  */
-export const fetchDetails = async (id: number): Promise<IApiResponse> => {
+export const fetchDetails = async (
+  id: number,
+  role: string
+): Promise<IApiResponse> => {
   const user = await prismaService.findFirstRecord(
     commonVariables.DB_COLLECTIONS.USER,
     { id, deleted_at: null },
@@ -122,6 +151,25 @@ export const fetchDetails = async (id: number): Promise<IApiResponse> => {
         role: true,
         created_at: true,
         updated_at: true,
+        agent_profile:
+          role === UserRole.AGENT
+            ? {
+                select: {
+                  id: true,
+                  approval_status: true,
+                  company_name: true,
+                  license_number: true,
+                },
+              }
+            : false,
+        investor_profile:
+          role === UserRole.INVESTOR
+            ? {
+                select: {
+                  id: true,
+                },
+              }
+            : false,
       },
     }
   );

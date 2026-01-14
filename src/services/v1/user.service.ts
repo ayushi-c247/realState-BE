@@ -1,4 +1,15 @@
-import { Prisma, UserRole, UserStatus } from "@prisma/client";
+import {
+  AgentApprovalStatus,
+  InvestmentHorizon,
+  OwnershipStructure,
+  PrimaryObjective,
+  Prisma,
+  RenovationWillingness,
+  BudgetUnit,
+  RiskTolerance,
+  UserRole,
+  UserStatus,
+} from "@prisma/client";
 import {
   BAD_REQUEST,
   commonMessages,
@@ -18,7 +29,6 @@ import {
   CreateAgentProfileDto,
   CreatedUser,
   CreateInvestorProfileDto,
-  CreateProfileRequestDto,
   IApiResponse,
   IUser,
   IUserFilter,
@@ -99,11 +109,13 @@ export const getUsers = async (
     }
   }
   // Search conditions
+
   if (search) {
     const searchTerms = search.split(" ").filter(Boolean);
     const orConditions = [
       { first_name: { contains: searchTerms[0] } },
       { last_name: { contains: searchTerms[0] } },
+      { full_name: { contains: searchTerms[0] } },
       { email: { contains: search } },
     ];
     filters = {
@@ -121,12 +133,20 @@ export const getUsers = async (
         id: true,
         first_name: true,
         last_name: true,
+        full_name: true,
         email: true,
         created_at: true,
         updated_at: true,
         role: true,
         status: true,
         last_login_date: true,
+        is_email_verified: true,
+        agent_profile: {
+          select: {
+            user_id: true,
+            approval_status: true,
+          },
+        },
       },
       skip: offset,
       take: limit,
@@ -167,6 +187,27 @@ export const getUserById = async (id: number) => {
         email: true,
         status: true,
         role: true,
+        agent_profile: {
+          select: {
+            user_id: true,
+            approval_status: true,
+            license_number: true,
+            company_name: true,
+          },
+        },
+        investor_profile: {
+          select: {
+            user_id: true,
+            budget_min: true,
+            investment_horizon: true,
+            ownership_structure: true,
+            primary_objective: true,
+            country: true,
+            state: true,
+            preferred_property_types: true,
+            tourism_preferences: true,
+          },
+        },
       },
     }
   );
@@ -309,6 +350,21 @@ export const createUser = async (
       const existing = await tx.user.findFirst({
         where: { email: emailToLower },
       });
+      if (existing && existing.status === UserStatus.PENDING) {
+        await tx.user.update({
+          where: { id: existing.id },
+          data: {
+            first_name: data.first_name,
+            last_name: data.last_name,
+          },
+        });
+        return {
+          status: CREATED,
+          success: false,
+          message: userMessages.USER_ALREADY_EXISTS_BUT_NOT_VERIFY,
+          data: null,
+        };
+      }
       if (existing) {
         return {
           status: CONFLICT,
@@ -397,13 +453,13 @@ export const createUser = async (
  * @returns
  */
 export const updateUserStatusById = async (
-  user_id: number,
+  id: number,
   status: UserStatus
 ): Promise<IApiResponse> => {
   const existingUser = await prismaService.getOneRecord(
     commonVariables.DB_COLLECTIONS.USER,
-    { id: user_id, deleted_at: null },
-    { id: true, status: true, role: true, user_name: true },
+    { id, deleted_at: null },
+    { id: true, role: true },
     null
   );
 
@@ -420,7 +476,7 @@ export const updateUserStatusById = async (
   await prismaService.updateRecord(
     commonVariables.DB_COLLECTIONS.USER,
     { status: status as UserStatus },
-    { id: user_id }
+    { id }
   );
 
   const message = userMessages.getUseStatusUpdatedMessage(
@@ -435,10 +491,10 @@ export const updateUserStatusById = async (
   };
 };
 
-export const createUserProfile = async (
+export const createInvestorProfile = async (
   user_id: number,
   role: string,
-  data: CreateProfileRequestDto
+  data: CreateInvestorProfileDto
 ): Promise<IApiResponse> => {
   try {
     const result = prismaService.runTransaction(async (tx) => {
@@ -468,37 +524,46 @@ export const createUserProfile = async (
           data: null,
         };
       }
+      const {
+        risk_tolerance,
+        budget_min,
+        budget_max,
+        preferred_property_types,
+        tourism_preferences,
+        country,
+        state,
+        cities,
+        ownership_structure,
+        primary_objective,
+        investment_horizon,
+        renovation_willingness,
+        budget_unit,
+      } = data as CreateInvestorProfileDto;
 
-      // INVESTOR
-      if (role === UserRole.INVESTOR) {
-        const {
-          risk_tolerance,
+      await tx.investorProfile.create({
+        data: {
+          user_id,
+          risk_tolerance: risk_tolerance as RiskTolerance,
           budget_min,
           budget_max,
           preferred_property_types,
-        } = data as CreateInvestorProfileDto;
-        await tx.investorProfile.create({
-          data: {
-            user_id,
-            risk_tolerance,
-            budget_min,
-            budget_max,
-            preferred_property_types,
-          },
-        });
-      } else if (role === UserRole.AGENT) {
-        //Agent
-        const { company_name, contact_number, license_number } =
-          data as CreateAgentProfileDto;
-        await tx.agentProfile.create({
-          data: {
-            user_id,
-            company_name,
-            contact_number,
-            license_number,
-          },
-        });
-      }
+          tourism_preferences,
+          budget_unit: budget_unit as BudgetUnit,
+          renovation_willingness:
+            renovation_willingness as RenovationWillingness,
+          country,
+          state,
+          cities: cities.join(","),
+          primary_objective: primary_objective as PrimaryObjective,
+          investment_horizon: investment_horizon as InvestmentHorizon,
+          ownership_structure: ownership_structure as OwnershipStructure,
+        },
+      });
+      await tx.user.update({
+        where: { id: user_id },
+        data: { status: UserStatus.ACTIVE },
+      });
+
       return {
         status: CREATED,
         success: true,
@@ -584,7 +649,7 @@ export const updateUserAndAgentProfile = async (
         await tx.investorProfile.update({
           where: { user_id: targetUserId },
           data: {
-            risk_tolerance,
+            risk_tolerance: risk_tolerance as RiskTolerance,
             budget_min,
             budget_max,
             preferred_property_types,
@@ -619,6 +684,201 @@ export const updateUserAndAgentProfile = async (
     return result;
   } catch (error) {
     console.error(error);
+    return {
+      status: SERVER_ERROR,
+      success: false,
+      message: commonMessages.INTERNAL_SERVER_ERROR,
+      data: null,
+    };
+  }
+};
+
+/**
+ * Update status of a agent by ID service
+ * @param id
+ * @param status
+ * @returns
+ */
+export const approveAgentStatusById = async (
+  id: number,
+  status: AgentApprovalStatus
+): Promise<IApiResponse> => {
+  const existingUser = await prismaService.getOneRecord(
+    commonVariables.DB_COLLECTIONS.USER,
+    { id, deleted_at: null },
+    { id: true },
+    null
+  );
+
+  if (!existingUser) {
+    return {
+      status: NOT_FOUND,
+      success: false,
+      message: commonMessages.ACCOUNT_NOT_FOUND,
+      data: null,
+    };
+  }
+
+  // Update user status
+  await prismaService.updateRecord(
+    commonVariables.DB_COLLECTIONS.AGENT_PROFILE,
+    { approval_status: status as AgentApprovalStatus },
+    { user_id: id }
+  );
+
+  return {
+    status: OK,
+    success: true,
+    message: userMessages.AGENT_APPROVAL_STATUS,
+    data: null,
+  };
+};
+
+export const createAgentProfile = async (
+  user_id: number,
+  role: string,
+  data: CreateAgentProfileDto
+): Promise<IApiResponse> => {
+  try {
+    const result = prismaService.runTransaction(async (tx) => {
+      const user = await tx.user.findFirst({
+        where: { id: user_id, deleted_at: null },
+      });
+      if (!user) {
+        return {
+          status: NOT_FOUND,
+          success: false,
+          message: commonMessages.ACCOUNT_NOT_FOUND,
+          data: null,
+        };
+      }
+      const exists = await commonHandler.checkUserProfileExists(
+        tx,
+        role,
+        user_id
+      );
+      if (exists) {
+        return {
+          status: CONFLICT,
+          success: false,
+          message: userMessages.userProfileAlreadyExistsMessage(
+            commonHandler.formatRoleForMessage(role)
+          ),
+          data: null,
+        };
+      }
+      //Agent
+      const { company_name, contact_number, license_number } =
+        data as CreateAgentProfileDto;
+      await tx.agentProfile.create({
+        data: {
+          user_id,
+          company_name,
+          contact_number,
+          license_number,
+        },
+      });
+      await tx.user.update({
+        where: { id: user_id },
+        data: { status: UserStatus.ACTIVE },
+      });
+
+      return {
+        status: CREATED,
+        success: true,
+        message: userMessages.getProfileCreatedMessage(
+          commonHandler.formatRoleForMessage(role)
+        ),
+        data: null,
+      };
+    });
+    return result;
+  } catch (error) {
+    return {
+      status: SERVER_ERROR,
+      success: false,
+      message: commonMessages.INTERNAL_SERVER_ERROR,
+      data: null,
+    };
+  }
+};
+export const resendVerificationInvitation = async (
+  user_id: number,
+  id: number
+): Promise<IApiResponse> => {
+  try {
+    const result = await prismaService.runTransaction(async (tx) => {
+      // Step 1: Fetch both users inside transaction
+      const existingUser = await tx.user.findFirst({
+        where: { id: user_id, deleted_at: null },
+        select: {
+          id: true,
+          status: true,
+          full_name: true,
+          role: true,
+          email: true,
+          is_email_verified: true,
+        },
+      });
+
+      if (!existingUser) {
+        return {
+          status: NOT_FOUND,
+          success: false,
+          message: commonMessages.ACCOUNT_NOT_FOUND,
+          data: null,
+        };
+      }
+
+      if (
+        existingUser.status !== UserStatus.PENDING ||
+        existingUser.is_email_verified
+      ) {
+        return {
+          status: CONFLICT,
+          success: false,
+          message: userMessages.RESEND_INVITATION_ERROR,
+          data: null,
+        };
+      }
+
+      const { hashedToken, expireDate, token } =
+        await authHandler.generateResetToken();
+
+      await tx.user.update({
+        where: { id: user_id },
+        data: { reset_token: hashedToken, password_reset_at: expireDate },
+      });
+
+      await emailHandler.sendSystemTemplateEmail(
+        emailVariables.EMAIL_TYPES.VERIFY_EMAIL,
+        {
+          email: existingUser.email,
+          name: existingUser.full_name,
+          token,
+        }
+      );
+      return {
+        status: OK,
+        success: true,
+        message: userMessages.RESEND_INVITATION,
+        data: null,
+      };
+    });
+
+    return result;
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message === commonMessages.SMTP_DOMAIN_NOT_FOUND
+    ) {
+      return {
+        status: SERVER_ERROR,
+        success: false,
+        message: error.message,
+        data: null,
+      };
+    }
     return {
       status: SERVER_ERROR,
       success: false,

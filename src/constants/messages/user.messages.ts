@@ -45,6 +45,8 @@ export const userProfileAlreadyExistsMessage = (role: string) => {
 export const USERS_FETCHED_SUCCESSFULLY = "Users fetched successfully.";
 /* Already Exists Messages */
 export const USER_ALREADY_EXISTS = "This email address already exists";
+export const USER_ALREADY_EXISTS_BUT_NOT_VERIFY =
+  "A verification link has been sent to your email. Please check your inbox and verify your account.";
 export const UPDATE_FAILED = "Failed to update user.";
 export const DELETE_FAILED = "Failed to delete user.";
 
@@ -67,3 +69,6 @@ export const ROLE_MUST_BE_ONE_OF = (field: string[]) =>
 
 /* Role Required */
 export const ROLE_REQUIRED = "Role is required.";
+
+/* Status Update Messages */
+export const AGENT_APPROVAL_STATUS = `Agent apporval status change successfully.`;

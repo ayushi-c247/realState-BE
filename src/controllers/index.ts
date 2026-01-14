@@ -1,4 +1,1 @@
-export {
-  authController,
-  userController,
-} from './v1';
+export { authController, userController, propertyController } from "./v1";

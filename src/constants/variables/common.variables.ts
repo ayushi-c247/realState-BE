@@ -40,6 +40,8 @@ export const paginations = {
 
 export const DB_COLLECTIONS = {
   USER: "user",
+  AGENT_PROFILE: "agentProfile",
+  PROPERTY: "propertyList",
 };
 
 // Basic name validation
@@ -48,3 +50,4 @@ export const NAME_MAX_LENGTH = 50;
 // Basic email validation
 export const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export const EMAIL_MAX_LENGTH = 80;
+export const ONLY_NUMBER_REGEX = /^[0-9]+$/;

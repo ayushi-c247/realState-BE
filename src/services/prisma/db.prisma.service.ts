@@ -643,7 +643,6 @@ export const findRecordByEmailV2 = async (
       where: {
         email,
       },
-      // select: include
     });
     const sanitizedUser = data ? sanitizeInclude(data, include) : null;
     return sanitizedUser;
@@ -662,9 +661,7 @@ export const getRecords = async (
     if (!validModels.includes(modelName)) {
       throw new Error(`${modelName} is not a valid Prisma model.`);
     }
-
     const model = prisma[modelName];
-
     const data = await model.findMany({
       ...options,
     });

@@ -39,22 +39,25 @@ model User {
 }
 
 model InvestorProfile {
-  id                       Int                    @id @default(autoincrement())
-  user_id                  Int                    @unique
-  risk_tolerance           String?                @db.VarChar(15)
-  budget_min               Decimal?               @db.Decimal(15, 2)
-  budget_max               Decimal?               @db.Decimal(15, 2)
-  preferred_property_types Json?
-  investment_horizon       InvestmentHorizon?
-  primary_objective        PrimaryObjective?
-  ownership_structure      OwnershipStructure?
-  preferred_regions        Json?
-  tourism_preferences      Json?
-  renovation_willingness   RenovationWillingness?
-  amenities_priority       Json?
+  id                       Int                   @id @default(autoincrement())
+  user_id                  Int                   @unique
+  risk_tolerance           RiskTolerance
+  budget_min               Decimal?              @db.Decimal(15, 2)
+  budget_max               Decimal?              @db.Decimal(15, 2)
+  investment_horizon       InvestmentHorizon
+  primary_objective        PrimaryObjective
+  ownership_structure      OwnershipStructure
+  renovation_willingness   RenovationWillingness
+  budget_unit              BudgetUnit  
+  country                  String                @db.VarChar(50)
+  state                    String                @db.VarChar(50)
+  cities                   String                @db.VarChar(500)
+  preferred_property_types String
+  tourism_preferences      String?               @db.VarChar(255)
+  amenities_priority       String?               @db.VarChar(255)
   management_strategy      ManagementStrategy?
-  created_at               DateTime               @default(now())
-  updated_at               DateTime               @updatedAt
+  created_at               DateTime              @default(now())
+  updated_at               DateTime              @updatedAt
 
   user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
@@ -72,7 +75,6 @@ model AgentProfile {
   created_at      DateTime            @default(now())
   updated_at      DateTime            @updatedAt
 
-  clients AgentClient[]
   user    User          @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@index([user_id, approval_status], map: "agent_profiles_user_status_idx")
@@ -80,15 +82,13 @@ model AgentProfile {
 }
 
 model AgentClient {
-  id             Int      @id @default(autoincrement()) @db.SmallInt
-  agent_id       Int
-  investor_id    Int
-  agentProfileId Int?
-  created_at     DateTime @default(now())
+  id          Int      @id @default(autoincrement()) @db.SmallInt
+  agent_id    Int
+  investor_id Int
+  created_at  DateTime @default(now())
 
-  agent        User          @relation("AgentUser", fields: [agent_id], references: [id], onDelete: Cascade)
-  investor     User          @relation("InvestorUser", fields: [investor_id], references: [id], onDelete: Cascade)
-  agentProfile AgentProfile? @relation(fields: [agentProfileId], references: [id])
+  agent          User          @relation("AgentUser", fields: [agent_id], references: [id], onDelete: Cascade)
+  investor       User          @relation("InvestorUser", fields: [investor_id], references: [id], onDelete: Cascade)
 
   @@unique([agent_id, investor_id], map: "agent_investor_unique")
   @@index([agent_id], map: "agent_clients_agent_id_idx")
@@ -128,6 +128,53 @@ model SavedCalculation {
   @@map("saved_calculations")
 }
 
+model PropertyList {
+  id          Int     @id @default(autoincrement())
+  title       String  @unique
+  price       String?
+  link        String
+  image       String?
+  description String? @db.Text
+
+  scrape_status     PropertyListStatus @default(PENDING)
+  visibility_status VisibilityStatus   @default(ACTIVE)
+  retry_count       Int                @default(0)
+
+  created_at     DateTime                @default(now())
+  updated_at     DateTime                @updatedAt
+  specifications PropertySpecification[] @relation("PropertySpecificationsRelation")
+
+  @@index([scrape_status], map: "idx_property_list_scrape_status")
+  @@index([visibility_status], map: "idx_property_list_visibility_status")
+  @@index([created_at], map: "idx_property_list_created_at")
+  @@map("property_list")
+}
+
+model PropertySpecification {
+  id            Int     @id @default(autoincrement())
+  property_id   Int     
+  property_type String?
+  title         String?
+  location      String?
+  landmarks     String? @db.Text
+  amenities     String?
+  price_min     Float?
+  price_max     Float?
+  title_image   String?
+  description   String? @db.Text
+  amenities_description String? @db.Text
+  images        Json?
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  property PropertyList @relation("PropertySpecificationsRelation", fields: [property_id], references: [id])
+
+  @@unique([property_id], map: "uniq_property_id")
+  @@index([property_id], map: "idx_specifications_property_id")
+  @@map("property_specifications")
+}
+
 enum UserStatus {
   ACTIVE
   INACTIVE
@@ -135,45 +182,66 @@ enum UserStatus {
 }
 
 enum UserRole {
-  INVESTOR
-  AGENT
   ADMIN
+  AGENT
+  INVESTOR
 }
 
 enum InvestmentHorizon {
-  SHORT
-  MEDIUM
   LONG
+  MEDIUM
+  SHORT
 }
 
 enum PrimaryObjective {
-  YIELD
   APPRECIATION
-  LIFESTYLE
   DIVERSIFICATION
+  LIFESTYLE
+  YIELD
 }
 
 enum OwnershipStructure {
-  SOLE
-  JOINT
   FRACTIONAL
+  JOINT
   LEASEBACK
+  SOLE
 }
 
 enum RenovationWillingness {
-  TURNKEY
-  LIGHT
   FULL
+  LIGHT
+  TURNKEY
 }
 
 enum ManagementStrategy {
-  SELF
   AGENCY
   HYBRID
+  SELF
 }
 
 enum AgentApprovalStatus {
-  PENDING
   APPROVED
+  PENDING
   REJECTED
+}
+
+enum RiskTolerance {
+  LOW
+  HIGH
+  MEDIUM
+}
+
+enum PropertyListStatus {
+  PROCESSED
+  PENDING
+}
+
+enum VisibilityStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum BudgetUnit {
+  CRORE
+  LAKH
 }

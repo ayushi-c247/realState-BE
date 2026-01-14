@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
-import { UserStatus } from "@prisma/client";
+import { AgentApprovalStatus, UserRole, UserStatus } from "@prisma/client";
 import { userService } from "@services";
 
 import { ErrorHandler, catchHandler } from "@utils";
@@ -163,11 +163,107 @@ export const updateUserStatusById = async (
   try {
     const { id } = req.params;
     const { status: userStatus } = (req as IAuthRequest).body;
+
     const { status, success, message, data } =
       await userService.updateUserStatusById(
         Number(id),
         userStatus as UserStatus
       );
+    if (success) {
+      responseHandler(res, message, status, data);
+    } else {
+      next(new ErrorHandler(message, status, data));
+    }
+  } catch (error) {
+    catchHandler(error, next);
+  }
+};
+/**
+ * Update agent status controller
+ * @param req  {userId, status}
+ * @param res
+ * @param next
+ */
+export const approveAgentStatusById = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { status: userStatus } = (req as IAuthRequest).body;
+    const { status, success, message, data } =
+      await userService.approveAgentStatusById(
+        Number(id),
+        userStatus as AgentApprovalStatus
+      );
+    if (success) {
+      responseHandler(res, message, status, data);
+    } else {
+      next(new ErrorHandler(message, status, data));
+    }
+  } catch (error) {
+    catchHandler(error, next);
+  }
+};
+
+export const createInvestorProfile = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { id, role } = (req as IAuthRequest).user;
+    const payload = req.body;
+    const response = await userService.createInvestorProfile(
+      id,
+      role as UserRole,
+      payload
+    );
+    const { success, message, status, data } = response;
+    if (success) {
+      responseHandler(res, message, status, data);
+    } else {
+      next(new ErrorHandler(message, status, data));
+    }
+  } catch (error) {
+    catchHandler(error, next);
+  }
+};
+export const createAgentProfile = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { id, role } = (req as IAuthRequest).user;
+    const payload = req.body;
+    const response = await userService.createAgentProfile(
+      id,
+      role as UserRole,
+      payload
+    );
+    const { success, message, status, data } = response;
+    if (success) {
+      responseHandler(res, message, status, data);
+    } else {
+      next(new ErrorHandler(message, status, data));
+    }
+  } catch (error) {
+    catchHandler(error, next);
+  }
+};
+
+export const resendVerificationInvitation = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { user_id } = (req as IAuthRequest).body;
+    const { id } = (req as IAuthRequest).user;
+    const { status, success, message, data } =
+      await userService.resendVerificationInvitation(user_id, Number(id));
     if (success) {
       responseHandler(res, message, status, data);
     } else {
