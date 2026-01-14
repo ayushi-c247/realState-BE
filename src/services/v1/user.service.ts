@@ -109,11 +109,13 @@ export const getUsers = async (
     }
   }
   // Search conditions
+
   if (search) {
     const searchTerms = search.split(" ").filter(Boolean);
     const orConditions = [
       { first_name: { contains: searchTerms[0] } },
       { last_name: { contains: searchTerms[0] } },
+      { full_name: { contains: searchTerms[0] } },
       { email: { contains: search } },
     ];
     filters = {
@@ -131,12 +133,14 @@ export const getUsers = async (
         id: true,
         first_name: true,
         last_name: true,
+        full_name: true,
         email: true,
         created_at: true,
         updated_at: true,
         role: true,
         status: true,
         last_login_date: true,
+        is_email_verified: true,
         agent_profile: {
           select: {
             user_id: true,
@@ -183,6 +187,27 @@ export const getUserById = async (id: number) => {
         email: true,
         status: true,
         role: true,
+        agent_profile: {
+          select: {
+            user_id: true,
+            approval_status: true,
+            license_number: true,
+            company_name: true,
+          },
+        },
+        investor_profile: {
+          select: {
+            user_id: true,
+            budget_min: true,
+            investment_horizon: true,
+            ownership_structure: true,
+            primary_objective: true,
+            country: true,
+            state: true,
+            preferred_property_types: true,
+            tourism_preferences: true,
+          },
+        },
       },
     }
   );
@@ -325,6 +350,21 @@ export const createUser = async (
       const existing = await tx.user.findFirst({
         where: { email: emailToLower },
       });
+      if (existing && existing.status === UserStatus.PENDING) {
+        await tx.user.update({
+          where: { id: existing.id },
+          data: {
+            first_name: data.first_name,
+            last_name: data.last_name,
+          },
+        });
+        return {
+          status: CREATED,
+          success: false,
+          message: userMessages.USER_ALREADY_EXISTS_BUT_NOT_VERIFY,
+          data: null,
+        };
+      }
       if (existing) {
         return {
           status: CONFLICT,
@@ -754,6 +794,91 @@ export const createAgentProfile = async (
     });
     return result;
   } catch (error) {
+    return {
+      status: SERVER_ERROR,
+      success: false,
+      message: commonMessages.INTERNAL_SERVER_ERROR,
+      data: null,
+    };
+  }
+};
+export const resendVerificationInvitation = async (
+  user_id: number,
+  id: number
+): Promise<IApiResponse> => {
+  try {
+    const result = await prismaService.runTransaction(async (tx) => {
+      // Step 1: Fetch both users inside transaction
+      const existingUser = await tx.user.findFirst({
+        where: { id: user_id, deleted_at: null },
+        select: {
+          id: true,
+          status: true,
+          full_name: true,
+          role: true,
+          email: true,
+          is_email_verified: true,
+        },
+      });
+
+      if (!existingUser) {
+        return {
+          status: NOT_FOUND,
+          success: false,
+          message: commonMessages.ACCOUNT_NOT_FOUND,
+          data: null,
+        };
+      }
+
+      if (
+        existingUser.status !== UserStatus.PENDING ||
+        existingUser.is_email_verified
+      ) {
+        return {
+          status: CONFLICT,
+          success: false,
+          message: userMessages.RESEND_INVITATION_ERROR,
+          data: null,
+        };
+      }
+
+      const { hashedToken, expireDate, token } =
+        await authHandler.generateResetToken();
+
+      await tx.user.update({
+        where: { id: user_id },
+        data: { reset_token: hashedToken, password_reset_at: expireDate },
+      });
+
+      await emailHandler.sendSystemTemplateEmail(
+        emailVariables.EMAIL_TYPES.VERIFY_EMAIL,
+        {
+          email: existingUser.email,
+          name: existingUser.full_name,
+          token,
+        }
+      );
+      return {
+        status: OK,
+        success: true,
+        message: userMessages.RESEND_INVITATION,
+        data: null,
+      };
+    });
+
+    return result;
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message === commonMessages.SMTP_DOMAIN_NOT_FOUND
+    ) {
+      return {
+        status: SERVER_ERROR,
+        success: false,
+        message: error.message,
+        data: null,
+      };
+    }
     return {
       status: SERVER_ERROR,
       success: false,

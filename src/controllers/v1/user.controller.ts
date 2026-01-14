@@ -253,3 +253,23 @@ export const createAgentProfile = async (
     catchHandler(error, next);
   }
 };
+
+export const resendVerificationInvitation = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { user_id } = (req as IAuthRequest).body;
+    const { id } = (req as IAuthRequest).user;
+    const { status, success, message, data } =
+      await userService.resendVerificationInvitation(user_id, Number(id));
+    if (success) {
+      responseHandler(res, message, status, data);
+    } else {
+      next(new ErrorHandler(message, status, data));
+    }
+  } catch (error) {
+    catchHandler(error, next);
+  }
+};

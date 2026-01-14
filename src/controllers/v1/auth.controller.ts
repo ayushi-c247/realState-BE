@@ -5,6 +5,7 @@ import { authService } from "@services";
 import { ErrorHandler, catchHandler } from "@utils";
 import { responseHandler } from "@middlewares";
 import { IAuthRequest } from "@customTypes";
+import { UserRole } from "@prisma/client";
 
 /**
  * Handles login a user
@@ -44,9 +45,11 @@ export const fetchDetails = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const { id } = (req as IAuthRequest).user;
-    const { status, success, message, data } =
-      await authService.fetchDetails(id);
+    const { id, role } = (req as IAuthRequest).user;
+    const { status, success, message, data } = await authService.fetchDetails(
+      id,
+      role as UserRole
+    );
     if (success) {
       responseHandler(res, message, status, data);
     } else {

@@ -82,4 +82,11 @@ router.get(
   userController.getUserById
 );
 
+router.post(
+  "/resend-invitation",
+  authenticate,
+  authorize(UserRole.ADMIN),
+  validate(userValidation.resendInvitationSchema),
+  userController.resendVerificationInvitation
+);
 export default router;

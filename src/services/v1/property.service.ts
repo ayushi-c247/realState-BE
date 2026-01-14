@@ -170,8 +170,6 @@ export const updatePropertyStatusById = async (
   id: number,
   status: VisibilityStatus
 ): Promise<IApiResponse> => {
-  console.log("id", id);
-
   const existingUser = await prismaService.getOneRecord(
     commonVariables.DB_COLLECTIONS.PROPERTY,
     { id },

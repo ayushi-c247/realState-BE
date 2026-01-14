@@ -12,10 +12,7 @@ export async function scrapePropertyList(maxPages = 1) {
 
   for (let currentPage = 1; currentPage <= maxPages; currentPage++) {
     const url = `https://www.99acres.com/new-launch-projects-in-india-ffid-page-${currentPage}`;
-    console.log("Scraping:", url);
-
     await page.goto(url, { waitUntil: "networkidle2" });
-
     await page.waitForSelector(".NPSRP__contentWrap", {
       timeout: 10000,
     });

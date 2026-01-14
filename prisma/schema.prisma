@@ -182,53 +182,53 @@ enum UserStatus {
 }
 
 enum UserRole {
-  INVESTOR
-  AGENT
   ADMIN
+  AGENT
+  INVESTOR
 }
 
 enum InvestmentHorizon {
-  SHORT
-  MEDIUM
   LONG
+  MEDIUM
+  SHORT
 }
 
 enum PrimaryObjective {
-  YIELD
   APPRECIATION
-  LIFESTYLE
   DIVERSIFICATION
+  LIFESTYLE
+  YIELD
 }
 
 enum OwnershipStructure {
-  SOLE
-  JOINT
   FRACTIONAL
+  JOINT
   LEASEBACK
+  SOLE
 }
 
 enum RenovationWillingness {
-  TURNKEY
-  LIGHT
   FULL
+  LIGHT
+  TURNKEY
 }
 
 enum ManagementStrategy {
-  SELF
   AGENCY
   HYBRID
+  SELF
 }
 
 enum AgentApprovalStatus {
-  PENDING
   APPROVED
+  PENDING
   REJECTED
 }
 
 enum RiskTolerance {
   LOW
-  MEDIUM
   HIGH
+  MEDIUM
 }
 
 enum PropertyListStatus {
@@ -242,6 +242,6 @@ enum VisibilityStatus {
 }
 
 enum BudgetUnit {
-  LAKH
   CRORE
+  LAKH
 }
