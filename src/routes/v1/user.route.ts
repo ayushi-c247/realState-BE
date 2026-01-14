@@ -18,6 +18,20 @@ router.post(
   validate(userValidation.addUserValidation),
   userController.createUser
 );
+router.post(
+  "/investor-profile",
+  authenticate,
+  authorize(UserRole.INVESTOR, UserRole.AGENT),
+  validate(userValidation.createInvestorProfileValidation),
+  userController.createInvestorProfile
+);
+router.post(
+  "/agent-profile",
+  authenticate,
+  authorize(UserRole.AGENT, UserRole.AGENT),
+  validate(userValidation.createAgentProfileValidation),
+  userController.createAgentProfile
+);
 
 router.put(
   "/:id",
@@ -44,6 +58,16 @@ router.patch(
   validateParams(commonValidations.idSchema),
   userController.updateUserStatusById
 );
+
+router.patch(
+  "/agent-status/:id",
+  authenticate,
+  authorize(UserRole.ADMIN),
+  validate(userValidation.updateAgentStatusSchema),
+  validateParams(commonValidations.idSchema),
+  userController.approveAgentStatusById
+);
+
 router.get(
   "/",
   authenticate,

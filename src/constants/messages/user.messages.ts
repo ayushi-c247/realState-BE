@@ -67,3 +67,6 @@ export const ROLE_MUST_BE_ONE_OF = (field: string[]) =>
 
 /* Role Required */
 export const ROLE_REQUIRED = "Role is required.";
+
+/* Status Update Messages */
+export const AGENT_APPROVAL_STATUS = `Agent apporval status change successfully.`;

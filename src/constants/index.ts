@@ -4,6 +4,7 @@ export {
   commonVariables,
   authVariables,
   emailVariables,
+  propertyVariables,
 } from "./variables";
 export * from "./statusCode";
 export * from "./messages";

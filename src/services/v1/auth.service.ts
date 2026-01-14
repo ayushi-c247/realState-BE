@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import type { Response } from "express";
-import { UserStatus } from "@prisma/client";
+import { AgentApprovalStatus, UserRole, UserStatus } from "@prisma/client";
 
 import { prismaService } from "@services";
 import { authHandler, generateTokenHandler, emailHandler } from "@utils";
@@ -44,9 +44,16 @@ export const login = async (
         status: true,
         password: true,
         is_email_verified: true,
-      }, // Fields to select
+        agent_profile: {
+          select: {
+            user_id: true,
+            approval_status: true,
+          },
+        },
+      },
     }
   );
+
   if (!user) {
     return {
       status: BAD_REQUEST,
@@ -55,9 +62,13 @@ export const login = async (
       data: null,
     };
   }
-  // if (user.status === UserStatus.PENDING) {
-  //   throw new Error(authMessages.ACCOUNT_PENDING);
-  // }
+  if (
+    user.role === UserRole.AGENT &&
+    user.status === UserStatus.ACTIVE &&
+    user?.agent_profile.approval_status === AgentApprovalStatus.PENDING
+  ) {
+    throw new Error(authMessages.ACCOUNT_PENDING);
+  }
   if (user.status === UserStatus.INACTIVE) {
     return {
       status: BAD_REQUEST,

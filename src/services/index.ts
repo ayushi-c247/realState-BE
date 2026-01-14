@@ -1,2 +1,2 @@
 export { prismaService } from "./prisma";
-export { authService, userService } from "./v1";
+export { authService, userService, propertyService } from "./v1";

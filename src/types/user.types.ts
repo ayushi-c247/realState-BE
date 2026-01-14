@@ -36,20 +36,26 @@ export interface AddUserRequestDto {
 }
 
 export interface CreateInvestorProfileDto {
-  risk_tolerance: string;
   budget_min: number;
   budget_max: number;
-  preferred_property_types: any;
+  risk_tolerance: string;
+  budget_unit: string;
+  investment_horizon: string;
+  primary_objective: string;
+  ownership_structure: string;
+  country: string;
+  state: string;
+  cities: string[];
+  preferred_property_types: string;
+  tourism_preferences: string;
+  renovation_willingness: string;
 }
 
 export interface CreateAgentProfileDto {
-  company_name: string;
+  company_name?: string;
   contact_number: string;
   license_number: string;
 }
-export type CreateProfileRequestDto =
-  | CreateInvestorProfileDto
-  | CreateAgentProfileDto;
 
 export interface UpdateUserBaseDto {
   first_name: string;
